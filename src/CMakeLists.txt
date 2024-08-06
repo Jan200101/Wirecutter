@@ -20,6 +20,7 @@ pico_add_extra_outputs(wirecutter)
 target_link_libraries(wirecutter PUBLIC
 	pico_stdlib
 	pico_cyw43_arch_none
+	pico_btstack_cyw43
 	pico_btstack_classic
 	tinyusb_host
 	tinyusb_board

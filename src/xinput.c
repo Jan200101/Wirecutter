@@ -81,7 +81,7 @@ void handle_device_descriptor(tuh_xfer_t* xfer)
     }
 
     change_device_id(dev_desc.idVendor, dev_desc.idProduct);
-    TU_LOG1("Updated device id to %d:%d\n", dev_desc.idVendor, dev_desc.idProduct);
+    TU_LOG1("Updated device id to %04x:%04x\n", dev_desc.idVendor, dev_desc.idProduct);
 }
 
 void tuh_xinput_mount_cb(uint8_t dev_addr, uint8_t instance, const xinputh_interface_t *xinput_itf)
