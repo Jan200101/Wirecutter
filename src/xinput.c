@@ -6,6 +6,7 @@
 #define XINPUT_GAMEPAD_DPAD (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN | XINPUT_GAMEPAD_DPAD_LEFT | XINPUT_GAMEPAD_DPAD_RIGHT)
 #define XINPUT_GAMEPAD_THUMB (XINPUT_GAMEPAD_LEFT_THUMB | XINPUT_GAMEPAD_RIGHT_THUMB)
 
+tusb_desc_device_t dev_desc;
 
 //Since https://github.com/hathach/tinyusb/pull/2222, we can add in custom vendor drivers easily
 usbh_class_driver_t const* usbh_app_driver_get_cb(uint8_t* driver_count){
@@ -25,8 +26,6 @@ void tuh_xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, xinputh_i
             gamepad.y = p->sThumbLY;
             gamepad.z = p->sThumbRX;
             gamepad.rz = p->sThumbRY;
-            //gamepad.rx = ((float)p->bLeftTrigger * 256) - 32767;
-            //gamepad.ry = ((float)p->bRightTrigger * 256) - 32767;
             gamepad.gas = p->bRightTrigger;
             gamepad.brake = p->bLeftTrigger;
 
@@ -73,6 +72,18 @@ void tuh_xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, xinputh_i
     tuh_xinput_receive_report(dev_addr, instance);
 }
 
+void handle_device_descriptor(tuh_xfer_t* xfer)
+{
+    if (XFER_RESULT_SUCCESS != xfer->result)
+    {
+        TU_LOG1("Failed to get usb descriptor\n");
+        return;
+    }
+
+    change_device_id(dev_desc.idVendor, dev_desc.idProduct);
+    TU_LOG1("Updated device id to %d:%d\n", dev_desc.idVendor, dev_desc.idProduct);
+}
+
 void tuh_xinput_mount_cb(uint8_t dev_addr, uint8_t instance, const xinputh_interface_t *xinput_itf)
 {
     TU_LOG1("Controller attached\n");
@@ -83,6 +94,7 @@ void tuh_xinput_mount_cb(uint8_t dev_addr, uint8_t instance, const xinputh_inter
         tuh_xinput_receive_report(dev_addr, instance);
         return;
     }
+    tuh_descriptor_get_device(dev_addr, &dev_desc, sizeof(dev_desc), handle_device_descriptor, 0);
     tuh_xinput_set_led(dev_addr, instance, 0, true);
     tuh_xinput_set_led(dev_addr, instance, 1, true);
     tuh_xinput_set_rumble(dev_addr, instance, 0, 0, true);

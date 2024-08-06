@@ -1,6 +1,8 @@
 #ifndef GAMEPAD_H
 #define GAMEPAD_H
 
+#include <stdint.h>
+
 typedef struct
 {
     int16_t x;
@@ -16,5 +18,6 @@ typedef struct
 extern gamepad_t gamepad;
 
 void request_can_send_now_event(void);
+void change_device_id(uint16_t vendor_id, uint16_t product_id);
 
 #endif

@@ -14,6 +14,7 @@ static const char hid_device_name[] = "Wirecutter Adapter";
 static const char service_name[] = "Wireless Gamepad";
 static uint8_t hid_service_buffer[4090];
 static uint8_t device_id_sdp_service_buffer[100];
+static uint8_t device_id_sdp_service_record_handle = 0;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 uint16_t hid_cid;
 
@@ -199,6 +200,25 @@ static void setup_sync_button(void)
     irq_set_enabled(IO_IRQ_BANK0, true);
 }
 
+void change_device_id(uint16_t vendor_id, uint16_t product_id)
+{
+    if (0 == device_id_sdp_service_record_handle)
+        device_id_sdp_service_record_handle = sdp_create_service_record_handle();
+    else
+        sdp_unregister_service(device_id_sdp_service_record_handle);   
+
+
+    device_id_create_sdp_record(
+        device_id_sdp_service_buffer,
+        device_id_sdp_service_record_handle,
+        DEVICE_ID_VENDOR_ID_SOURCE_USB,
+        vendor_id, product_id,
+        1
+    );
+    btstack_assert(de_get_len(device_id_sdp_service_buffer) <= sizeof(device_id_sdp_service_buffer));
+    sdp_register_service(device_id_sdp_service_buffer);
+}
+
 int btstack_main(int argc, const char * argv[]);
 int btstack_main(int argc, const char * argv[]){
     (void)argc;
@@ -244,7 +264,7 @@ int btstack_main(int argc, const char * argv[]){
     );
 
     hid_create_sdp_record(hid_service_buffer, sdp_create_service_record_handle(), &hid_params);
-    btstack_assert(de_get_len( hid_service_buffer) <= sizeof(hid_service_buffer));
+    btstack_assert(de_get_len(hid_service_buffer) <= sizeof(hid_service_buffer));
     sdp_register_service(hid_service_buffer);
 
      // HID Device
