@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include "pico/cyw43_arch.h"
 #include "btstack.h"
 #include "gamepad.h"
 #include "hardware/gpio.h"
@@ -17,9 +18,6 @@ static uint8_t device_id_sdp_service_buffer[100];
 static uint8_t device_id_sdp_service_record_handle = 0;
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 uint16_t hid_cid;
-
-const uint16_t host_max_latency = 1600;
-const uint16_t host_min_timeout = 3200;
 
 const uint8_t hid_descriptor_gamepad[] = {
     0x05, 0x01, // USAGE_PAGE (Generic Desktop)
@@ -154,15 +152,20 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t * pack
                             printf("HID Connected\n");
                             hid_device_request_can_send_now_event(hid_cid);
                             gap_discoverable_control(0);
+                            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
                             break;
                         case HID_SUBEVENT_CONNECTION_CLOSED:
                             printf("HID Disconnected\n");
                             hid_cid = 0;
                             break;
+                        case HID_SUBEVENT_GET_PROTOCOL_RESPONSE:
+                            break;
                         case HID_SUBEVENT_CAN_SEND_NOW:  
                             if(hid_cid!=0){ //Solves crash when disconnecting gamepad on android
-                              send_report_joystick();
-                              hid_device_request_can_send_now_event(hid_cid);
+                                cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+                                send_report_joystick();
+                                hid_device_request_can_send_now_event(hid_cid);
+                                cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
                             }
                             break;
                         default:
@@ -183,9 +186,11 @@ static void sync_irq_handler(void)
     if (gpio_get_irq_event_mask(BUTTON_PIN) & GPIO_IRQ_EDGE_FALL)
     {
         gpio_acknowledge_irq(BUTTON_PIN, GPIO_IRQ_EDGE_FALL);
+
         hid_device_disconnect(hid_cid);
         gap_discoverable_control(1);
         printf("Set discoverable\n");
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
     }
 }
 
@@ -224,15 +229,24 @@ int btstack_main(int argc, const char * argv[]){
     (void)argc;
     (void)argv;
 
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
     gap_discoverable_control(0);
     gap_set_class_of_device(0x2508);
     gap_set_local_name(hid_device_name);
+    gap_set_default_link_policy_settings(LM_LINK_POLICY_ENABLE_ROLE_SWITCH | LM_LINK_POLICY_ENABLE_SNIFF_MODE);
+    gap_set_allow_role_switch(true);
 #ifdef ENABLE_BLE
     gap_set_connection_parameters(0x0060, 0x0030, 0x06, 0x06, 0, 0x0048, 2, 0x0030);
 #endif
 
     // L2CAP
     l2cap_init();
+
+#ifdef ENABLE_BLE
+    // Initialize LE Security Manager. Needed for cross-transport key derivation
+    sm_init();
+#endif
+
     // SDP Server
     sdp_init();
     memset(hid_service_buffer, 0, sizeof(hid_service_buffer));
@@ -244,13 +258,13 @@ int btstack_main(int argc, const char * argv[]){
 
     hid_sdp_record_t hid_params = {
         0x2508,
-        0,
-        0,
+        33,
+        1, // virtual cable
         1, // remote wake
-        0,
-        1, // normally connectable
+        1, // reconnect initially
+        0, // normally connectable
         0, // boot device
-        host_max_latency, host_min_timeout,
+        0xFFFF, 0xFFFF,
         3200,
         hid_descriptor_gamepad,
         sizeof(hid_descriptor_gamepad),

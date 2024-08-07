@@ -15,7 +15,6 @@ int main()
         printf("failed to initialise cyw43_arch\n");
         return -1;
     }
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
     board_init();
     tuh_init(BOARD_TUH_RHPORT);

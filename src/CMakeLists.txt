@@ -22,6 +22,7 @@ target_link_libraries(wirecutter PUBLIC
 	pico_cyw43_arch_none
 	pico_btstack_cyw43
 	pico_btstack_classic
+	pico_btstack_ble
 	tinyusb_host
 	tinyusb_board
 	xinput_host
